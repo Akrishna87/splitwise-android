@@ -32,9 +32,9 @@ class MoneyTest {
     }
 
     @Test fun convert() {
-        assertEquals(8300L, Money.convert(100, "USD", "INR", 83.0) / 1) // 1 USD -> 83.00 INR minor
+        assertEquals(8300L, Money.convert(100, "USD", "INR", 83.0)) // 1.00 USD -> 83.00 INR
         assertEquals(10000L, Money.convert(10000, "USD", "USD", 5.0))
-        assertEquals(15000L, Money.convert(100, "USD", "JPY", 150.0)) // 1.00 USD -> 150 JPY
+        assertEquals(150L, Money.convert(100, "USD", "JPY", 150.0)) // 1.00 USD -> 150 JPY (yen has no minor unit)
     }
 }
 
