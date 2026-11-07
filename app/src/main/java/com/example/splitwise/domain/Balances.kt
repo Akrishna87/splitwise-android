@@ -1,28 +1,27 @@
 package com.example.splitwise.domain
 
-data class Transfer(val fromId: Long, val toId: Long, val amount: Long)
+import com.example.splitwise.data.ExpenseEntity
 
-/** One recorded expense (or settlement): who paid and how much each member owes. */
-data class ExpenseRecord(val paidById: Long, val amount: Long, val shares: Map<Long, Long>)
+data class Transfer(val from: String, val to: String, val amount: Long)
 
 object Balances {
 
-    /** Positive = is owed money, negative = owes money. */
-    fun net(expenses: List<ExpenseRecord>): Map<Long, Long> {
-        val out = mutableMapOf<Long, Long>()
+    /** Positive = is owed money, negative = owes money. Settlements are ordinary expenses. */
+    fun net(expenses: List<ExpenseEntity>): Map<String, Long> {
+        val out = LinkedHashMap<String, Long>()
         for (e in expenses) {
-            out[e.paidById] = (out[e.paidById] ?: 0L) + e.amount
-            for ((id, owed) in e.shares) out[id] = (out[id] ?: 0L) - owed
+            if (e.deleted) continue
+            out[e.paidById] = (out[e.paidById] ?: 0L) + e.baseAmount
+            for ((id, owed) in Json.decodeLongMap(e.sharesJson)) out[id] = (out[id] ?: 0L) - owed
         }
         return out
     }
 
-    /** Greedy debt simplification: minimises the number of payments needed to settle up. */
-    fun simplify(net: Map<Long, Long>): List<Transfer> {
-        val debtors = net.filter { it.value < 0 }.map { it.key to -it.value }
-            .sortedByDescending { it.second }.toMutableList()
-        val creditors = net.filter { it.value > 0 }.map { it.key to it.value }
-            .sortedByDescending { it.second }.toMutableList()
+    /** Minimum-ish number of payments that settles everyone (greedy on net balances). */
+    fun simplify(net: Map<String, Long>): List<Transfer> {
+        val byAmount = compareByDescending<Pair<String, Long>> { it.second }.thenBy { it.first }
+        val debtors = net.filter { it.value < 0 }.map { it.key to -it.value }.sortedWith(byAmount).toMutableList()
+        val creditors = net.filter { it.value > 0 }.map { it.key to it.value }.sortedWith(byAmount).toMutableList()
         val result = mutableListOf<Transfer>()
         var i = 0
         var j = 0
@@ -36,17 +35,25 @@ object Balances {
         }
         return result
     }
-}
 
-fun formatMoney(cents: Long): String {
-    val sign = if (cents < 0) "-" else ""
-    val a = kotlin.math.abs(cents)
-    return "$sign$${a / 100}.${(a % 100).toString().padStart(2, '0')}"
-}
-
-/** Parses "12.5" or "12.50" into cents; returns null when invalid. */
-fun parseMoney(text: String): Long? {
-    val v = text.trim().toBigDecimalOrNull() ?: return null
-    if (v.scale() > 2 && v.stripTrailingZeros().scale() > 2) return null
-    return v.movePointRight(2).toLong()
+    /** Who owes whom directly (no re-routing), netting each pair of people. */
+    fun pairwise(expenses: List<ExpenseEntity>): List<Transfer> {
+        val owed = HashMap<Pair<String, String>, Long>() // (debtor, creditor) -> amount
+        for (e in expenses) {
+            if (e.deleted) continue
+            for ((m, s) in Json.decodeLongMap(e.sharesJson)) {
+                if (m != e.paidById) owed.merge(m to e.paidById, s) { a, b -> a + b }
+            }
+        }
+        val out = mutableListOf<Transfer>()
+        val seen = HashSet<Pair<String, String>>()
+        for ((k, v) in owed) {
+            if (k in seen) continue
+            val rev = k.second to k.first
+            seen += k; seen += rev
+            val d = v - (owed[rev] ?: 0L)
+            if (d > 0) out += Transfer(k.first, k.second, d) else if (d < 0) out += Transfer(rev.first, rev.second, -d)
+        }
+        return out.sortedWith(compareBy({ it.from }, { it.to }))
+    }
 }

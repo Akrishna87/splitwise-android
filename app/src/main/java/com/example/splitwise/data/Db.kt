@@ -4,57 +4,42 @@ import android.content.Context
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
-@Entity data class GroupEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String)
-
-@Entity(foreignKeys = [ForeignKey(GroupEntity::class, ["id"], ["groupId"], onDelete = ForeignKey.CASCADE)],
-    indices = [Index("groupId")])
-data class MemberEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val groupId: Long, val name: String)
-
-@Entity(foreignKeys = [ForeignKey(GroupEntity::class, ["id"], ["groupId"], onDelete = ForeignKey.CASCADE)],
-    indices = [Index("groupId")])
-data class ExpenseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val groupId: Long,
-    val description: String,
-    val amount: Long,
-    val paidById: Long,
-    val createdAt: Long = System.currentTimeMillis(),
-    val isSettlement: Boolean = false,
-)
-
-@Entity(foreignKeys = [ForeignKey(ExpenseEntity::class, ["id"], ["expenseId"], onDelete = ForeignKey.CASCADE)],
-    indices = [Index("expenseId")])
-data class ShareEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val expenseId: Long,
-    val memberId: Long,
-    val owed: Long,
-)
-
-@androidx.room.Dao
+@Dao
 abstract class AppDao {
-    @Query("SELECT * FROM GroupEntity ORDER BY id DESC") abstract fun groups(): Flow<List<GroupEntity>>
-    @Query("SELECT * FROM GroupEntity WHERE id = :id") abstract fun group(id: Long): Flow<GroupEntity?>
-    @Query("SELECT * FROM MemberEntity WHERE groupId = :g ORDER BY id") abstract fun members(g: Long): Flow<List<MemberEntity>>
-    @Query("SELECT * FROM ExpenseEntity WHERE groupId = :g ORDER BY createdAt DESC") abstract fun expenses(g: Long): Flow<List<ExpenseEntity>>
-    @Query("SELECT s.* FROM ShareEntity s JOIN ExpenseEntity e ON e.id = s.expenseId WHERE e.groupId = :g")
-    abstract fun shares(g: Long): Flow<List<ShareEntity>>
+    @Query("SELECT * FROM GroupEntity WHERE deleted = 0 ORDER BY name COLLATE NOCASE") abstract fun groups(): Flow<List<GroupEntity>>
+    @Query("SELECT * FROM MemberEntity WHERE deleted = 0 ORDER BY rowid") abstract fun members(): Flow<List<MemberEntity>>
+    @Query("SELECT * FROM ExpenseEntity WHERE deleted = 0 ORDER BY date DESC, createdAt DESC") abstract fun expenses(): Flow<List<ExpenseEntity>>
+    @Query("SELECT * FROM RecurringEntity WHERE deleted = 0 ORDER BY nextDue") abstract fun recurring(): Flow<List<RecurringEntity>>
+    @Query("SELECT * FROM CommentEntity WHERE deleted = 0 AND expenseId = :expenseId ORDER BY createdAt")
+    abstract fun comments(expenseId: String): Flow<List<CommentEntity>>
 
-    @Insert abstract suspend fun insert(g: GroupEntity): Long
-    @Insert abstract suspend fun insert(m: MemberEntity): Long
-    @Insert abstract suspend fun insert(e: ExpenseEntity): Long
-    @Insert abstract suspend fun insertShares(s: List<ShareEntity>)
-    @Query("DELETE FROM ExpenseEntity WHERE id = :id") abstract suspend fun deleteExpense(id: Long)
-    @Query("DELETE FROM GroupEntity WHERE id = :id") abstract suspend fun deleteGroup(id: Long)
+    @Query("SELECT * FROM GroupEntity") abstract suspend fun rawGroups(): List<GroupEntity>
+    @Query("SELECT * FROM MemberEntity") abstract suspend fun rawMembers(): List<MemberEntity>
+    @Query("SELECT * FROM ExpenseEntity") abstract suspend fun rawExpenses(): List<ExpenseEntity>
+    @Query("SELECT * FROM CommentEntity") abstract suspend fun rawComments(): List<CommentEntity>
+    @Query("SELECT * FROM RecurringEntity") abstract suspend fun rawRecurring(): List<RecurringEntity>
 
-    @Transaction
-    open suspend fun addExpense(e: ExpenseEntity, owed: Map<Long, Long>) {
-        val id = insert(e)
-        insertShares(owed.filter { it.value != 0L }.map { ShareEntity(expenseId = id, memberId = it.key, owed = it.value) })
-    }
+    @Upsert abstract suspend fun upsertGroup(x: GroupEntity)
+    @Upsert abstract suspend fun upsertMember(x: MemberEntity)
+    @Upsert abstract suspend fun upsertExpense(x: ExpenseEntity)
+    @Upsert abstract suspend fun upsertComment(x: CommentEntity)
+    @Upsert abstract suspend fun upsertRecurring(x: RecurringEntity)
+    @Upsert abstract suspend fun upsertGroups(x: List<GroupEntity>)
+    @Upsert abstract suspend fun upsertMembers(x: List<MemberEntity>)
+    @Upsert abstract suspend fun upsertExpenses(x: List<ExpenseEntity>)
+    @Upsert abstract suspend fun upsertComments(x: List<CommentEntity>)
+    @Upsert abstract suspend fun upsertRecurrings(x: List<RecurringEntity>)
+
+    /** "Who am I" is local to each phone, so it deliberately does not touch updatedAt. */
+    @Query("UPDATE MemberEntity SET isMe = (id = :memberId) WHERE groupId = :groupId")
+    abstract suspend fun setMe(groupId: String, memberId: String)
 }
 
-@Database(entities = [GroupEntity::class, MemberEntity::class, ExpenseEntity::class, ShareEntity::class], version = 1, exportSchema = false)
+@Database(
+    entities = [GroupEntity::class, MemberEntity::class, ExpenseEntity::class, CommentEntity::class, RecurringEntity::class],
+    version = 2,
+    exportSchema = false,
+)
 abstract class AppDb : RoomDatabase() {
     abstract fun dao(): AppDao
 
@@ -62,6 +47,7 @@ abstract class AppDb : RoomDatabase() {
         @Volatile private var inst: AppDb? = null
         fun get(ctx: Context): AppDb = inst ?: synchronized(this) {
             inst ?: Room.databaseBuilder(ctx.applicationContext, AppDb::class.java, "splitwise.db")
+                .fallbackToDestructiveMigration(true)
                 .build().also { inst = it }
         }
     }
