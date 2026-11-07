@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -28,3 +30,13 @@ jobs:
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish latest APK as a release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk SplitWise.apk
+          gh release delete latest --cleanup-tag -y || true
+          gh release create latest SplitWise.apk --target "$GITHUB_SHA" \
+            --title "SplitWise - latest build" \
+            --notes "Debug build of commit $GITHUB_SHA. Download SplitWise.apk and install it (allow installs from your browser/file manager when asked)."
