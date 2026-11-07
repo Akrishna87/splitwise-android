@@ -32,7 +32,8 @@ data class ShareEntity(
 )
 
 @Dao
-abstract class Dao {
+@androidx.room.Dao
+abstract class AppDao {
     @Query("SELECT * FROM GroupEntity ORDER BY id DESC") abstract fun groups(): Flow<List<GroupEntity>>
     @Query("SELECT * FROM GroupEntity WHERE id = :id") abstract fun group(id: Long): Flow<GroupEntity?>
     @Query("SELECT * FROM MemberEntity WHERE groupId = :g ORDER BY id") abstract fun members(g: Long): Flow<List<MemberEntity>>
@@ -56,7 +57,7 @@ abstract class Dao {
 
 @Database(entities = [GroupEntity::class, MemberEntity::class, ExpenseEntity::class, ShareEntity::class], version = 1, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
-    abstract fun dao(): Dao
+    abstract fun dao(): AppDao
 
     companion object {
         @Volatile private var inst: AppDb? = null
