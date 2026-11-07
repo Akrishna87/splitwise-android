@@ -68,11 +68,10 @@ private fun ExpenseForm(vm: AppViewModel, group: GroupEntity, members: List<Memb
     var type by remember { mutableStateOf(existing?.let { runCatching { SplitType.valueOf(it.splitType) }.getOrNull() } ?: SplitType.EQUAL) }
     var included by remember { mutableStateOf<Set<String>>(if (inputs0.isNotEmpty()) inputs0.keys.toSet() else members.map { it.id }.toSet()) }
     var values by remember { mutableStateOf<Map<String, String>>(inputs0) }
-    var items by remember {
-        mutableStateOf(
-            existing?.let { e -> Json.decodeItems(e.itemsJson).map { ItemRow(it.name, Money.plain(it.priceMinor, e.currency), it.assignedTo) } } ?: emptyList()
-        )
+    val items0: List<ItemRow> = remember {
+        existing?.let { e -> Json.decodeItems(e.itemsJson).map { ItemRow(it.name, Money.plain(it.priceMinor, e.currency), it.assignedTo) } } ?: emptyList()
     }
+    var items by remember { mutableStateOf<List<ItemRow>>(items0) }
     var receipt by remember { mutableStateOf(existing?.receiptPath ?: "") }
     var repeat by remember { mutableStateOf(Interval.NONE) }
     var error by remember { mutableStateOf<String?>(null) }
