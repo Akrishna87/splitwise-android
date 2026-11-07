@@ -1,4 +1,4 @@
-# SplitWise (Android)
+# Splitzy (Android)
 
 A full-featured Splitwise-style expense sharing app. Kotlin, Jetpack Compose, Room. Works offline; data lives on the phone.
 

@@ -35,8 +35,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk SplitWise.apk
+          cp app/build/outputs/apk/debug/app-debug.apk Splitzy.apk
           gh release delete latest --cleanup-tag -y || true
-          gh release create latest SplitWise.apk --target "$GITHUB_SHA" \
-            --title "SplitWise - latest build" \
-            --notes "Debug build of commit $GITHUB_SHA. Download SplitWise.apk and install it (allow installs from your browser/file manager when asked)."
+          gh release create latest Splitzy.apk --target "$GITHUB_SHA" \
+            --title "Splitzy - latest build" \
+            --notes "Debug build of commit $GITHUB_SHA. Download Splitzy.apk and install it (allow installs from your browser/file manager when asked)."
