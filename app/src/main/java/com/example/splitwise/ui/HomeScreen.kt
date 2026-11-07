@@ -182,7 +182,7 @@ private fun AccountTab(vm: AppViewModel, onImport: () -> Unit) {
     var name by remember { mutableStateOf(vm.userName) }
     var currency by remember { mutableStateOf(vm.defaultCurrency) }
     var saved by remember { mutableStateOf(false) }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.setReminders(it) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.updateReminders(it) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(name, { name = it; saved = false }, label = { Text("Your name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -197,7 +197,7 @@ private fun AccountTab(vm: AppViewModel, onImport: () -> Unit) {
                 Text("Get a notification when you have unsettled balances.", style = MaterialTheme.typography.bodySmall)
             }
             Switch(vm.reminders, { on ->
-                if (on && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) else vm.setReminders(on)
+                if (on && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) else vm.updateReminders(on)
             })
         }
 

@@ -35,7 +35,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repo.renameMe(userName) }
     }
 
-    fun setReminders(on: Boolean) { repo.settings.reminders = on; reminders = on }
+    fun updateReminders(on: Boolean) { repo.settings.reminders = on; reminders = on }
 
     fun createGroup(name: String, currency: String, kind: String, others: List<String>, onCreated: (String) -> Unit = {}) =
         viewModelScope.launch { onCreated(repo.createGroup(name, currency, kind, others)) }
