@@ -31,7 +31,6 @@ data class ShareEntity(
     val owed: Long,
 )
 
-@Dao
 @androidx.room.Dao
 abstract class AppDao {
     @Query("SELECT * FROM GroupEntity ORDER BY id DESC") abstract fun groups(): Flow<List<GroupEntity>>
