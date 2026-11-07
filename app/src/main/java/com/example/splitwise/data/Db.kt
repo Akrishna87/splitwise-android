@@ -32,23 +32,23 @@ data class ShareEntity(
 )
 
 @Dao
-interface Dao {
-    @Query("SELECT * FROM GroupEntity ORDER BY id DESC") fun groups(): Flow<List<GroupEntity>>
-    @Query("SELECT * FROM GroupEntity WHERE id = :id") fun group(id: Long): Flow<GroupEntity?>
-    @Query("SELECT * FROM MemberEntity WHERE groupId = :g ORDER BY id") fun members(g: Long): Flow<List<MemberEntity>>
-    @Query("SELECT * FROM ExpenseEntity WHERE groupId = :g ORDER BY createdAt DESC") fun expenses(g: Long): Flow<List<ExpenseEntity>>
+abstract class Dao {
+    @Query("SELECT * FROM GroupEntity ORDER BY id DESC") abstract fun groups(): Flow<List<GroupEntity>>
+    @Query("SELECT * FROM GroupEntity WHERE id = :id") abstract fun group(id: Long): Flow<GroupEntity?>
+    @Query("SELECT * FROM MemberEntity WHERE groupId = :g ORDER BY id") abstract fun members(g: Long): Flow<List<MemberEntity>>
+    @Query("SELECT * FROM ExpenseEntity WHERE groupId = :g ORDER BY createdAt DESC") abstract fun expenses(g: Long): Flow<List<ExpenseEntity>>
     @Query("SELECT s.* FROM ShareEntity s JOIN ExpenseEntity e ON e.id = s.expenseId WHERE e.groupId = :g")
-    fun shares(g: Long): Flow<List<ShareEntity>>
+    abstract fun shares(g: Long): Flow<List<ShareEntity>>
 
-    @Insert suspend fun insert(g: GroupEntity): Long
-    @Insert suspend fun insert(m: MemberEntity): Long
-    @Insert suspend fun insert(e: ExpenseEntity): Long
-    @Insert suspend fun insertShares(s: List<ShareEntity>)
-    @Query("DELETE FROM ExpenseEntity WHERE id = :id") suspend fun deleteExpense(id: Long)
-    @Query("DELETE FROM GroupEntity WHERE id = :id") suspend fun deleteGroup(id: Long)
+    @Insert abstract suspend fun insert(g: GroupEntity): Long
+    @Insert abstract suspend fun insert(m: MemberEntity): Long
+    @Insert abstract suspend fun insert(e: ExpenseEntity): Long
+    @Insert abstract suspend fun insertShares(s: List<ShareEntity>)
+    @Query("DELETE FROM ExpenseEntity WHERE id = :id") abstract suspend fun deleteExpense(id: Long)
+    @Query("DELETE FROM GroupEntity WHERE id = :id") abstract suspend fun deleteGroup(id: Long)
 
     @Transaction
-    suspend fun addExpense(e: ExpenseEntity, owed: Map<Long, Long>) {
+    open suspend fun addExpense(e: ExpenseEntity, owed: Map<Long, Long>) {
         val id = insert(e)
         insertShares(owed.filter { it.value != 0L }.map { ShareEntity(expenseId = id, memberId = it.key, owed = it.value) })
     }
