@@ -14,6 +14,8 @@ android {
         targetSdk = 34
         versionCode = 2
         versionName = "2.0"
+        // phones only: drops emulator-only x86 libraries to roughly halve the APK
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
     buildTypes {
         release {
